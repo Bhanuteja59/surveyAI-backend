@@ -20,9 +20,18 @@ def get_current_user(
             detail="Invalid or expired token",
         )
     user_id = payload.get("sub")
-    user = db.query(User).filter(User.id == int(user_id)).first()
-    if not user or not user.is_active:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+    from app.models.tenant import Tenant
+    user = db.query(User).join(Tenant, User.tenant_id == Tenant.id)\
+        .filter(User.id == int(user_id), User.is_active == True, Tenant.is_active == True).first()
+    
+    if not user:
+        # Check if user exists but tenant is inactive
+        existing = db.query(User).filter(User.id == int(user_id)).first()
+        if existing:
+            tenant = db.query(Tenant).filter(Tenant.id == existing.tenant_id).first()
+            if tenant and not tenant.is_active:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Organization is suspended")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found or disabled")
     return user
 
 
