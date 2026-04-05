@@ -197,11 +197,14 @@ async def stream_analytics(survey_id: int, request: Request, db: Session = Depen
         while True:
             if await request.is_disconnected():
                 break
+            db_conn = SessionLocal()
             try:
-                data = _build_survey_analytics(survey_id, current_user.tenant_id, db)
+                data = _build_survey_analytics(survey_id, current_user.tenant_id, db_conn)
                 yield f"data: {data.model_dump_json()}\n\n"
             except Exception:
                 yield "data: {}\n\n"
+            finally:
+                db_conn.close()
             await asyncio.sleep(5)
 
     return StreamingResponse(event_generator(), media_type="text/event-stream", headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
