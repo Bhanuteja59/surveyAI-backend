@@ -15,11 +15,15 @@ router = APIRouter(tags=["responses"])
 
 @router.post("/surveys/public/{token}/respond", response_model=ResponseOut, status_code=201)
 def submit_response(token: str, payload: ResponseSubmit, request: Request, db: Session = Depends(get_db)):
-    survey = db.query(Survey).filter(
-        Survey.public_token == token,
-        Survey.is_published == True,
-        Survey.is_active == True,
-    ).first()
+    from app.models.tenant import Tenant
+    survey = db.query(Survey)\
+        .join(Tenant, Survey.tenant_id == Tenant.id)\
+        .filter(
+            Survey.public_token == token,
+            Survey.is_published == True,
+            Survey.is_active == True,
+            Tenant.is_active == True
+        ).first()
     if not survey:
         raise HTTPException(status_code=404, detail="Survey not found")
 

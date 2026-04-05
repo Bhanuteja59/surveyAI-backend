@@ -101,9 +101,7 @@ def _build_survey_analytics(survey_id: int, tenant_id: int, db: Session) -> Surv
     )
 
 
-@router.get("/dashboard", response_model=DashboardStats)
-def dashboard_stats(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    tid = current_user.tenant_id
+def _build_dashboard_stats(db: Session, tid: int) -> DashboardStats:
     total_surveys = db.query(func.count(Survey.id)).filter(Survey.tenant_id == tid, Survey.is_active == True).scalar() or 0
     published = db.query(func.count(Survey.id)).filter(Survey.tenant_id == tid, Survey.is_active == True, Survey.is_published == True).scalar() or 0
     total_responses = db.query(func.count(Response.id)).filter(Response.tenant_id == tid).scalar() or 0
@@ -124,6 +122,28 @@ def dashboard_stats(db: Session = Depends(get_db), current_user: User = Depends(
         cnt = db.query(func.count(Response.id)).filter(Response.survey_id == s.id).scalar() or 0
         recent_list.append({"id": s.id, "title": s.title, "response_count": cnt, "is_published": s.is_published})
 
+    trend_points = []
+    for i in range(13, -1, -1):
+        day = today - timedelta(days=i)
+        count = db.query(func.count(Response.id)).filter(
+            Response.tenant_id == tid,
+            cast(Response.submitted_at, Date) == day,
+        ).scalar() or 0
+        trend_points.append(TrendPoint(date=day.isoformat(), count=count))
+
+    recent_responses = db.query(Response, Survey)\
+        .join(Survey, Response.survey_id == Survey.id)\
+        .filter(Response.tenant_id == tid)\
+        .order_by(Response.submitted_at.desc()).limit(15).all()
+    
+    recent_activity = []
+    for resp, surv in recent_responses:
+        recent_activity.append({
+            "id": resp.id,
+            "survey_title": surv.title,
+            "time": resp.submitted_at.isoformat() if resp.submitted_at else ""
+        })
+
     return DashboardStats(
         total_surveys=total_surveys,
         published_surveys=published,
@@ -131,7 +151,34 @@ def dashboard_stats(db: Session = Depends(get_db), current_user: User = Depends(
         responses_today=today_responses,
         responses_this_week=week_responses,
         recent_surveys=recent_list,
+        completion_trend=trend_points,
+        recent_activity=recent_activity
     )
+
+@router.get("/dashboard", response_model=DashboardStats)
+def dashboard_stats(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return _build_dashboard_stats(db, current_user.tenant_id)
+
+
+from app.core.database import SessionLocal
+
+@router.get("/dashboard/stream")
+async def stream_dashboard(request: Request, current_user: User = Depends(get_current_user)):
+    async def event_generator():
+        while True:
+            if await request.is_disconnected():
+                break
+            db = SessionLocal()
+            try:
+                data = _build_dashboard_stats(db, current_user.tenant_id)
+                yield f"data: {data.model_dump_json()}\n\n"
+            except Exception:
+                yield "data: {}\n\n"
+            finally:
+                db.close()
+            await asyncio.sleep(5)
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream", headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
 @router.get("/surveys/{survey_id}", response_model=SurveyAnalytics)

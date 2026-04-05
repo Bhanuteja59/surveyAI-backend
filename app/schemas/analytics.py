@@ -39,3 +39,5 @@ class DashboardStats(BaseModel):
     responses_today: int
     responses_this_week: int = 0
     recent_surveys: List[Dict[str, Any]]
+    completion_trend: List[TrendPoint] = []
+    recent_activity: List[Dict[str, Any]] = []
