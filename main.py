@@ -20,7 +20,14 @@ def startup_db_check():
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.FRONTEND_URL, "http://localhost:3000", "http://localhost:3001", "http://127.0.0.1:3001", "http://127.0.0.1:3000"],
+    allow_origins=[
+        settings.FRONTEND_URL, 
+        "https://survey-ai-superadmin.vercel.app",
+        "http://localhost:3000", 
+        "http://localhost:3001", 
+        "http://127.0.0.1:3001", 
+        "http://127.0.0.1:3000"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
