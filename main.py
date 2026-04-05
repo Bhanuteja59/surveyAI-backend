@@ -5,9 +5,6 @@ from app.core.database import Base, engine
 from app.routers import auth, surveys, responses, analytics, ai, superadmin
 import app.models  # Ensures all models are registered with Base metadata
 
-# Create all tables on startup
-Base.metadata.create_all(bind=engine)
-
 app = FastAPI(
     title="SurveyAI",
     description="AI-powered multi-tenant survey platform",
@@ -15,6 +12,11 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
 )
+
+# Create all tables on startup (Safe for Serverless)
+@app.on_event("startup")
+def startup_db_check():
+    Base.metadata.create_all(bind=engine)
 
 app.add_middleware(
     CORSMiddleware,
