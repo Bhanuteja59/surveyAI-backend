@@ -54,8 +54,11 @@ app.include_router(superadmin.router, prefix=API)
 @app.get("/")
 def root():
     return {"message": "SurveyAI API", "docs": "/docs"}
-
+   
 
 @app.get("/health")
 def health():
     return {"status": "ok!"}
+
+
+#done
