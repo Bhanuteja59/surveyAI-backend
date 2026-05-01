@@ -30,6 +30,11 @@ class RegisterRequest(BaseModel):
         return v
 
 
+class VerifyOTPRequest(BaseModel):
+    email: EmailStr
+    otp: str
+
+
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
@@ -43,7 +48,7 @@ class TokenResponse(BaseModel):
 
 class UserOut(BaseModel):
     id: int
-    user_uuid: str
+    user_uuid: Optional[str] = None
     email: str
     full_name: str
     role: str

@@ -49,6 +49,8 @@ class SurveyUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
     is_published: Optional[bool] = None
+    webhook_url: Optional[str] = None
+    webhook_secret: Optional[str] = None
 
 
 class SurveyOut(BaseModel):
@@ -59,6 +61,8 @@ class SurveyOut(BaseModel):
     public_token: str
     is_active: bool
     is_published: bool
+    webhook_url: Optional[str] = None
+    webhook_secret: Optional[str] = None
     created_at: datetime
     updated_at: Optional[datetime]
     questions: List[QuestionOut] = []

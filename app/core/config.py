@@ -21,11 +21,20 @@ class Settings(BaseSettings):
     CELERY_BROKER_URL: str = "redis://localhost:6379/0"
     CELERY_RESULT_BACKEND: str = "redis://localhost:6379/1"
 
-    # OpenAI
+    # AI Keys
     OPENAI_API_KEY: str = ""
+    GROQ_API_KEY: str = ""
 
     # CORS
     FRONTEND_URL: str = "http://localhost:3000"
+
+    # SMTP Settings
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM_EMAIL: str = ""
+    SMTP_FROM_NAME: str = "SurveyAI"
 
     class Config:
         env_file = ".env"
