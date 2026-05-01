@@ -42,5 +42,6 @@ def send_otp_email(to_email: str, otp: str):
             server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
             server.send_message(msg)
     except Exception as e:
-        logger.error(f"Failed to send email: {e}")
-        # In production, you might want to raise an exception or log it properly
+        logger.error(f"Failed to send email to {to_email}: {e}")
+        # Raising an exception so the API can handle the failure appropriately
+        raise RuntimeError(f"Could not send verification email: {e}")

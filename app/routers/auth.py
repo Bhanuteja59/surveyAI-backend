@@ -47,10 +47,15 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
         
         user = existing_user
     else:
-        # Create new tenant and user
-        tenant = Tenant(name=payload.tenant_name, slug=payload.tenant_slug)
-        db.add(tenant)
-        db.flush()
+        # Check if we can reuse the existing tenant (slug already exists but no active users)
+        if existing_tenant:
+            tenant = existing_tenant
+            tenant.name = payload.tenant_name
+        else:
+            # Create new tenant
+            tenant = Tenant(name=payload.tenant_name, slug=payload.tenant_slug)
+            db.add(tenant)
+            db.flush()
 
         user = User(
             tenant_id=tenant.id,
@@ -67,7 +72,15 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
     db.commit()
     
     # Send OTP email
-    send_otp_email(user.email, otp)
+    try:
+        send_otp_email(user.email, otp)
+    except Exception as e:
+        # If email fails, we might want to log it and let the user know
+        # In a real app, you might want to rollback the user creation or provide a 'resend' option
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to send verification email. Please contact support. Error: {str(e)}"
+        )
     
     return {"message": "OTP sent to your email. Please verify to complete registration."}
 
