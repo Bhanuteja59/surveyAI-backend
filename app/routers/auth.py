@@ -117,12 +117,9 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
     if not user or not verify_password(payload.password, user.hashed_password):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
     
-<<<<<<< HEAD
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Please verify your email first")
     
-=======
->>>>>>> 7a345136a19a83cba2216a433bf34ed160c16c68
     # Auto-promote bunny@gmail.com to super admin if not already
     if user.email == "bunny@gmail.com" and user.role != "super_admin":
         user.role = "super_admin"

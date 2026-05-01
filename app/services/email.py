@@ -1,11 +1,14 @@
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+import logging
 from app.core.config import settings
+
+logger = logging.getLogger("survey_ai")
 
 def send_otp_email(to_email: str, otp: str):
     if not settings.SMTP_USER or not settings.SMTP_PASSWORD:
-        print(f"SMTP not configured. OTP for {to_email} is: {otp}")
+        logger.warning(f"SMTP not configured. OTP for {to_email} is: {otp}")
         return
 
     msg = MIMEMultipart()
@@ -39,5 +42,5 @@ def send_otp_email(to_email: str, otp: str):
             server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
             server.send_message(msg)
     except Exception as e:
-        print(f"Failed to send email: {e}")
+        logger.error(f"Failed to send email: {e}")
         # In production, you might want to raise an exception or log it properly
