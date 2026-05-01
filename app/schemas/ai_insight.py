@@ -22,3 +22,8 @@ class AIInsightOut(BaseModel):
 
 class AIInsightTrigger(BaseModel):
     survey_id: int
+
+
+class AIGenerateRequest(BaseModel):
+    prompt: str
+    num_questions: int = 5

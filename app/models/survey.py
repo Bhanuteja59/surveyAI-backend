@@ -16,6 +16,8 @@ class Survey(Base):
     public_token = Column(String(64), unique=True, index=True, default=lambda: secrets.token_urlsafe(32))
     is_active = Column(Boolean, default=True)
     is_published = Column(Boolean, default=False)
+    webhook_url = Column(String(1000), nullable=True)
+    webhook_secret = Column(String(100), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -24,4 +26,3 @@ class Survey(Base):
     questions = relationship("Question", back_populates="survey", cascade="all, delete-orphan", order_by="Question.order_index")
     responses = relationship("Response", back_populates="survey", cascade="all, delete-orphan")
     ai_insights = relationship("AIInsight", back_populates="survey", cascade="all, delete-orphan")
-    tags = relationship("Tag", secondary="survey_tag", back_populates="surveys")

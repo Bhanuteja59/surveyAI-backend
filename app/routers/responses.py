@@ -15,11 +15,15 @@ router = APIRouter(tags=["responses"])
 
 @router.post("/surveys/public/{token}/respond", response_model=ResponseOut, status_code=201)
 def submit_response(token: str, payload: ResponseSubmit, request: Request, db: Session = Depends(get_db)):
-    survey = db.query(Survey).filter(
-        Survey.public_token == token,
-        Survey.is_published == True,
-        Survey.is_active == True,
-    ).first()
+    from app.models.tenant import Tenant
+    survey = db.query(Survey)\
+        .join(Tenant, Survey.tenant_id == Tenant.id)\
+        .filter(
+            Survey.public_token == token,
+            Survey.is_published == True,
+            Survey.is_active == True,
+            Tenant.is_active == True
+        ).first()
     if not survey:
         raise HTTPException(status_code=404, detail="Survey not found")
 
@@ -31,6 +35,16 @@ def submit_response(token: str, payload: ResponseSubmit, request: Request, db: S
             raise HTTPException(status_code=422, detail=f"Question {q.text!r} is required")
 
     ip = request.client.host if request.client else None
+    
+    # Prevent duplicate submission based on IP to secure form filling
+    if ip:
+        existing_response = db.query(Response).filter(
+            Response.survey_id == survey.id,
+            Response.ip_address == ip
+        ).first()
+        if existing_response:
+            raise HTTPException(status_code=409, detail="You have already completed this survey. Duplicate submissions are not allowed.")
+
     response = Response(
         survey_id=survey.id,
         tenant_id=survey.tenant_id,
@@ -67,6 +81,42 @@ def submit_response(token: str, payload: ResponseSubmit, request: Request, db: S
             run_ai_analysis.delay(survey.id)
     except Exception as e:
         logger.warning(f"Could not connect to Redis to queue AI task. Form submitted successfully, but background task skipped. Error: {e}")
+
+    # Trigger Real-Time Webhook for 3rd Party Integrations
+    if survey.webhook_url:
+        import httpx
+        from fastapi import BackgroundTasks
+        
+        def push_webhook(url: str, secret: str, response_data: dict):
+            try:
+                headers = {"Content-Type": "application/json"}
+                if secret:
+                    headers["X-Webhook-Secret"] = secret
+                with httpx.Client() as client:
+                    client.post(url, json=response_data, headers=headers, timeout=5.0)
+            except Exception as e:
+                logger.error(f"Failed to push webhook to {url}: {e}")
+
+        # Construct JSON payload for webhook
+        out_data = {
+            "survey_id": survey.id,
+            "survey_title": survey.title,
+            "response_id": response.id,
+            "respondent_name": response.respondent_name,
+            "respondent_email": response.respondent_email,
+            "answers": [
+                {
+                    "question_id": a.question_id,
+                    "value": a.value,
+                    "value_json": a.value_json
+                } for a in payload.answers
+            ]
+        }
+        
+        # Fire and forget
+        import threading
+        t = threading.Thread(target=push_webhook, args=(survey.webhook_url, survey.webhook_secret, out_data))
+        t.start()
 
     return db.query(Response).filter(Response.id == response.id).first()
 
