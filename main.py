@@ -39,7 +39,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-)
+)  
 
 API = settings.API_V1_STR  # /api/v1
 
