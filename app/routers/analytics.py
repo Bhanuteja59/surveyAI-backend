@@ -127,6 +127,7 @@ def _build_dashboard_stats(db: Session, tid: int) -> DashboardStats:
         cnt = db.query(func.count(Response.id)).filter(Response.survey_id == s.id).scalar() or 0
         recent_list.append({"id": s.id, "title": s.title, "response_count": cnt, "is_published": s.is_published})
 
+<<<<<<< HEAD
     # Optimized Trend: 1 query
     fourteen_days_ago = today - timedelta(days=14)
     trend_data = db.query(
@@ -142,6 +143,16 @@ def _build_dashboard_stats(db: Session, tid: int) -> DashboardStats:
     for i in range(13, -1, -1):
         day = today - timedelta(days=i)
         trend_points.append(TrendPoint(date=day.isoformat(), count=trend_map.get(day, 0)))
+=======
+    trend_points = []
+    for i in range(13, -1, -1):
+        day = today - timedelta(days=i)
+        count = db.query(func.count(Response.id)).filter(
+            Response.tenant_id == tid,
+            cast(Response.submitted_at, Date) == day,
+        ).scalar() or 0
+        trend_points.append(TrendPoint(date=day.isoformat(), count=count))
+>>>>>>> 7a345136a19a83cba2216a433bf34ed160c16c68
 
     recent_responses = db.query(Response, Survey)\
         .join(Survey, Response.survey_id == Survey.id)\
@@ -180,6 +191,7 @@ async def stream_dashboard(request: Request, current_user: User = Depends(get_cu
         while True:
             if await request.is_disconnected():
                 break
+<<<<<<< HEAD
             
             # Using asyncio.to_thread to avoid blocking the event loop
             def get_data_sync():
@@ -195,6 +207,16 @@ async def stream_dashboard(request: Request, current_user: User = Depends(get_cu
             except Exception:
                 yield "data: {}\n\n"
             
+=======
+            db = SessionLocal()
+            try:
+                data = _build_dashboard_stats(db, current_user.tenant_id)
+                yield f"data: {data.model_dump_json()}\n\n"
+            except Exception:
+                yield "data: {}\n\n"
+            finally:
+                db.close()
+>>>>>>> 7a345136a19a83cba2216a433bf34ed160c16c68
             await asyncio.sleep(5)
 
     return StreamingResponse(event_generator(), media_type="text/event-stream", headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
@@ -212,6 +234,7 @@ async def stream_analytics(survey_id: int, request: Request, current_user: User 
         while True:
             if await request.is_disconnected():
                 break
+<<<<<<< HEAD
             
             def get_data_sync():
                 db_conn = SessionLocal()
@@ -226,6 +249,16 @@ async def stream_analytics(survey_id: int, request: Request, current_user: User 
             except Exception:
                 yield "data: {}\n\n"
                 
+=======
+            db_conn = SessionLocal()
+            try:
+                data = _build_survey_analytics(survey_id, current_user.tenant_id, db_conn)
+                yield f"data: {data.model_dump_json()}\n\n"
+            except Exception:
+                yield "data: {}\n\n"
+            finally:
+                db_conn.close()
+>>>>>>> 7a345136a19a83cba2216a433bf34ed160c16c68
             await asyncio.sleep(5)
 
     return StreamingResponse(event_generator(), media_type="text/event-stream", headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
