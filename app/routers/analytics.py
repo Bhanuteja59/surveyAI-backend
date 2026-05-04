@@ -42,7 +42,7 @@ def _build_survey_analytics(survey_id: int, tenant_id: int, db: Session) -> Surv
     ).filter(
         Response.survey_id == survey_id,
         Response.submitted_at >= fourteen_days_ago
-    ).group_by("day").all()
+    ).group_by(cast(Response.submitted_at, Date)).all()
     
     trend_map = {r.day: r.cnt for r in trend_data}
     trend_points = []
@@ -135,7 +135,7 @@ def _build_dashboard_stats(db: Session, tid: int) -> DashboardStats:
     ).filter(
         Response.tenant_id == tid,
         Response.submitted_at >= fourteen_days_ago
-    ).group_by("day").all()
+    ).group_by(cast(Response.submitted_at, Date)).all()
     
     trend_map = {r.day: r.cnt for r in trend_data}
     trend_points = []
