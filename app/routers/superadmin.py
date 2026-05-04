@@ -40,10 +40,11 @@ def _tenant_stats(tenant_id: int, db: Session) -> dict:
     user_count = db.query(func.count(User.id)).filter(User.tenant_id == tenant_id).scalar() or 0
 
     # Get top surveys
+    # Fix: Added Survey.id and Survey.title to group_by to satisfy Postgres requirements
     top_surveys = db.query(Survey.title, func.count(Response.id).label('rcount'))\
         .outerjoin(Response, Survey.id == Response.survey_id)\
         .filter(Survey.tenant_id == tenant_id)\
-        .group_by(Survey.id)\
+        .group_by(Survey.id, Survey.title)\
         .order_by(func.count(Response.id).desc())\
         .limit(3).all()
 
@@ -210,7 +211,9 @@ async def stream(request: Request, _: User = Depends(require_super_admin)):
             try:
                 snapshot = _global_snapshot(db)
                 yield f"data: {json.dumps(snapshot)}\n\n"
-            except Exception:
+            except Exception as e:
+                import logging
+                logging.getLogger("survey_ai").error(f"Superadmin stream error: {e}")
                 yield "data: {}\n\n"
             finally:
                 db.close()
