@@ -209,17 +209,36 @@ def generate_survey_questions(prompt: str, num_questions: int) -> dict:
                 {"role": "system", "content": system_msg},
                 {"role": "user",   "content": user_msg},
             ],
-            response_format={"type": "json_object"},
-            temperature=0.5,
+            response_format={"type": "json_object"} if "gpt-4" in model or "llama-3" in model else None,
+            temperature=0.7,
             max_tokens=2000,
             stream=False,
         )
 
         raw = completion.choices[0].message.content.strip()
-        data = json.loads(raw)
         
+        # Robust JSON extraction in case response_format is ignored or contains markdown
+        if raw.startswith("```json"):
+            raw = raw.replace("```json", "").replace("```", "").strip()
+        elif raw.startswith("```"):
+            raw = raw.replace("```", "").strip()
+            
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError as je:
+            logger.error(f"Failed to parse AI JSON: {raw}")
+            raise ValueError(f"AI returned invalid JSON: {str(je)}")
+        
+        if not isinstance(data, dict):
+            raise ValueError("AI returned non-object JSON")
+
         # Enforce categorical mapping just to be perfectly safe
+        questions = data.get("questions", [])
+        if not isinstance(questions, list):
+            data["questions"] = []
+            
         for q in data.get("questions", []):
+            if not isinstance(q, dict): continue
             if q.get("question_type") == "text_input":
                 q["question_type"] = "multiple_choice"
                 q.setdefault("options", {}).setdefault("choices", ["Yes", "No", "N/A"])
@@ -227,5 +246,5 @@ def generate_survey_questions(prompt: str, num_questions: int) -> dict:
         return data
 
     except Exception as e:
-        logger.error("generate_survey_questions failed: %s", e)
+        logger.error("generate_survey_questions failed: %s", e, exc_info=True)
         raise ValueError(f"Generation failed: {str(e)}")
